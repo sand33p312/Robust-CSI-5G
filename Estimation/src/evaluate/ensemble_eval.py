@@ -102,7 +102,7 @@ def ensemble_forward_loader(loader, ensemble, K):
         epis_all.append(m2_run / (K - 1) if K > 1 else m2_run * 0)
         alea_all.append(a_run / K)
         lv_all.append(lv_run / K)
-        H_all.append(batch['h']); SIG_all.append(batch['h_sig'])
+        H_all.append(batch['h']); SIG_all.append(batch['scale'])
         SNR_all.append(batch['snr'])
 
     return (torch.cat(mu_all), torch.cat(alea_all), torch.cat(epis_all),
@@ -133,7 +133,7 @@ def compute_test_nmse(MU, H_t, SIG_t, SNR_t, ensemble, K, test_loader):
             x = batch['x'][sm].to(cfg.DEVICE)
             for k, mdl in enumerate(ensemble):
                 preds_k[k].append(mdl(x, False)[0].cpu())
-            trues.append(batch['h'][sm]); sigs.append(batch['h_sig'][sm])
+            trues.append(batch['h'][sm]); sigs.append(batch['scale'][sm])
     T20 = torch.cat(trues); S20 = torch.cat(sigs)
     member_nmse20 = [nmse_db_global(torch.cat(preds_k[k]), T20, S20) for k in range(K)]
 
@@ -533,7 +533,7 @@ def main():
     ensemble, K = load_ensemble()
 
     # Data loaders
-    _, val_loader, test_loader, gen_loaders = build_loaders(seed=0, include_gen=True)
+    _, val_loader, test_loader, gen_loaders = build_loaders(include_gen=True)
 
     # Test NMSE
     print('Running ensemble over test set...')

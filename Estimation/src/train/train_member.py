@@ -10,6 +10,11 @@ Usage:
 Each run saves: SAVE_DIR/best_seed{SEED}.pt
 (The evaluation script expects all 5 checkpoints in CKPT_DIR.)
 
+Member diversity comes from the per-seed RNG: different weight initialisation,
+different data-shuffle order, and different AWGN draws each epoch. (The earlier
+per-member phase-augmentation was removed when the normalisation was corrected;
+seed-driven diversity is sufficient for a deep ensemble.)
+
 Scheduler: CosineAnnealingWarmRestarts(T_0=50, T_mult=2)
   Preferred over ReduceLROnPlateau — restarts prevent local minima and
   give stable convergence without triggering on noisy val metrics.
@@ -61,7 +66,7 @@ def evaluate_per_snr(model, loader, device):
         x = batch['x'].to(device)
         mean, _ = model(x, False)   # deterministic (mean weights)
         preds.append(mean.cpu()); trues.append(batch['h'])
-        sigs.append(batch['h_sig']); snrs.append(batch['snr'])
+        sigs.append(batch['scale']); snrs.append(batch['snr'])
     P = torch.cat(preds); T = torch.cat(trues)
     S = torch.cat(sigs);  N = torch.cat(snrs).numpy()
     return {int(s): nmse_db_global(P[N == s], T[N == s], S[N == s])
@@ -91,7 +96,7 @@ def main():
     print(f'KL_WEIGHT     : {cfg.KL_WEIGHT:.0e}')
 
     # Data
-    train_loader, val_loader, _, _ = build_loaders(seed=SEED, include_gen=False)
+    train_loader, val_loader, _, _ = build_loaders(include_gen=False)
 
     # Model
     model = build_model(cfg)
